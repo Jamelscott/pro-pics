@@ -3,12 +3,13 @@ import { useColorScheme } from "react-native";
 
 import { Colors } from "@/constants/theme";
 
-export default function AppTabs() {
+export default function AppTabs({ hidden = false }: { hidden?: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === "unspecified" ? "light" : scheme];
 
   return (
     <NativeTabs
+      hidden={hidden}
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
       labelStyle={{ selected: { color: colors.text } }}
@@ -28,19 +29,10 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="share">
+      <NativeTabs.Trigger name="camera">
         <NativeTabs.Trigger.Label>Camera</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require("@/assets/images/tabIcons/camera.png")}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require("@/assets/images/tabIcons/settings.png")}
           renderingMode="template"
         />
       </NativeTabs.Trigger>

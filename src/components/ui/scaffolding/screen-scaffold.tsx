@@ -1,8 +1,8 @@
 import { Platform, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/ui/scaffolding/themed-text";
+import { ThemedView } from "@/components/ui/scaffolding/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 

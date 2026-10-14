@@ -12,7 +12,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "We need camera access to take photos",
         "NSPhotoLibraryUsageDescription": "We need photo library access to save your photos"
-      }
+      },
+      "bundleIdentifier": "com.jamelscott.pro-pics"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,6 +43,18 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Pro Pics reads the photos you saved to link them to projects.",
+          "savePhotosPermission": "Pro Pics saves project photos to your camera roll."
+        }
+      ],
+      [
+        "expo-camera",
+        { "cameraPermission": "We need camera access to take photos" }
       ]
     ],
     "experiments": {

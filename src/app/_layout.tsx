@@ -1,13 +1,54 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import AppTabs from '@/components/app-tabs';
+import LoginScreen from "@/components/auth/LoginScreen";
+import { ThemePreferenceProvider, useUserThemePreference } from "@/context/ThemeContext";
+import { UserProvider, useUser } from "@/context/UserContext";
+import { Colors } from "@/constants/theme";
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function AppContent() {
+  const { colorScheme } = useUserThemePreference();
+  const { session, isLoading: isAuthLoading } = useUser();
+  const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AppTabs />
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      {isAuthLoading ? (
+        <View style={[styles.loading, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color="#208AEF" />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Checking your account…
+          </Text>
+        </View>
+      ) : session ? (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="settings" />
+        </Stack>
+      ) : (
+        <LoginScreen sessionError={null} />
+      )}
     </ThemeProvider>
   );
 }
+
+export default function TabLayout() {
+  return (
+    <UserProvider>
+      <ThemePreferenceProvider>
+        <AppContent />
+      </ThemePreferenceProvider>
+    </UserProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+});
