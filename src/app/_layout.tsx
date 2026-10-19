@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 
 import LoginScreen from "@/components/auth/LoginScreen";
 import { ThemePreferenceProvider, useUserThemePreference } from "@/context/ThemeContext";
@@ -8,10 +9,19 @@ import { Colors } from "@/constants/theme";
 
 function AppContent() {
   const { colorScheme } = useUserThemePreference();
-  const { session, isLoading: isAuthLoading } = useUser();
+  const { session, isLoading: isAuthLoading, isRecoveringPassword } = useUser();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <StatusBar
+        style={
+          Platform.OS === "android"
+            ? colorScheme === "dark"
+              ? "light"
+              : "dark"
+            : "auto"
+        }
+      />
       {isAuthLoading ? (
         <View style={[styles.loading, { backgroundColor: colors.background }]}>
           <ActivityIndicator color="#208AEF" />
@@ -19,7 +29,7 @@ function AppContent() {
             Checking your account…
           </Text>
         </View>
-      ) : session ? (
+      ) : session && !isRecoveringPassword ? (
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="settings" />

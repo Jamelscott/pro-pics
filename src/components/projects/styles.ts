@@ -15,6 +15,7 @@ const createStyles = (t: Ink) =>
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 10,
+      paddingBottom: 20,
     },
     eyebrow: {
       fontFamily: "monospace",
@@ -22,14 +23,13 @@ const createStyles = (t: Ink) =>
       fontWeight: "600",
       letterSpacing: 1.4,
       color: t.ink(0.45),
-      marginBottom: 4,
+      marginTop: 4,
     },
     title: {
       fontSize: 34,
       fontWeight: "800",
       color: t.text,
       letterSpacing: -0.5,
-      paddingBottom: 20,
     },
     createButton: {
       width: 44,

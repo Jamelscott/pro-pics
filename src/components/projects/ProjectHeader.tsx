@@ -1,5 +1,6 @@
 import { Pencil, Plus, X } from "lucide-react-native";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInk } from "@/hooks/use-themed-styles";
 import { useProjectStyles } from "./styles";
 
@@ -17,12 +18,18 @@ export default function ProjectHeader({
   onEditPress,
 }: ProjectHeaderProps) {
   const styles = useProjectStyles();
+  const insets = useSafeAreaInsets();
   const t = useInk();
   return (
-    <View style={styles.headerContainer}>
+    <View
+      style={[
+        styles.headerContainer,
+        Platform.OS === "android" && { paddingTop: insets.top },
+      ]}
+    >
       <View>
-        <Text style={styles.eyebrow}>{projectCount} Projects</Text>
         <Text style={styles.title}>Projects</Text>
+        <Text style={styles.eyebrow}>{projectCount} Projects</Text>
       </View>
       <View style={{ flexDirection: "row", gap: 10 }}>
         {onEditPress && (

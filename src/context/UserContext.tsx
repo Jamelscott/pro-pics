@@ -7,6 +7,8 @@ import React, {
   useState,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
+import { handlePasswordRecoveryUrl } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import {
   getUserProfile,
@@ -33,6 +35,8 @@ interface UserContextValue {
   profile: UserProfile | null;
   storage: UserStorageSummary;
   isLoading: boolean;
+  isRecoveringPassword: boolean;
+  setIsRecoveringPassword: (value: boolean) => void;
   refreshProfile: () => Promise<void>;
   updateTheme: (theme: ThemePreference) => Promise<UserProfile>;
   updateProfile: (updates: Partial<Omit<UserProfile, "id" | "created_at" | "updated_at">>) => Promise<UserProfile>;
@@ -47,6 +51,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
 
   const fetchProfile = useCallback(async (uid: string) => {
     try {
@@ -99,6 +104,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, [fetchProfile]);
+
+  useEffect(() => {
+    const handleUrl = (url: string | null) => {
+      if (!url) return;
+      // Flag first so the app doesn't flash the signed-in screens.
+      setIsRecoveringPassword(true);
+      handlePasswordRecoveryUrl(url)
+        .then((handled) => {
+          if (!handled) setIsRecoveringPassword(false);
+        })
+        .catch((err) => {
+          console.warn("Failed to handle password recovery link:", err);
+          setIsRecoveringPassword(false);
+        });
+    };
+
+    Linking.getInitialURL().then(handleUrl);
+    const subscription = Linking.addEventListener("url", ({ url }) =>
+      handleUrl(url),
+    );
+    return () => subscription.remove();
+  }, []);
 
   // Realtime subscription to users table updates (e.g. storage change triggers)
   useEffect(() => {
@@ -181,11 +208,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       profile,
       storage,
       isLoading,
+      isRecoveringPassword,
+      setIsRecoveringPassword,
       refreshProfile,
       updateTheme,
       updateProfile,
     }),
-    [user, session, profile, storage, isLoading, refreshProfile, updateTheme, updateProfile],
+    [user, session, profile, storage, isLoading, isRecoveringPassword, refreshProfile, updateTheme, updateProfile],
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

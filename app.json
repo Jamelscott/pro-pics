@@ -10,6 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "We need camera access to take photos",
         "NSPhotoLibraryUsageDescription": "We need photo library access to save your photos"
       },
@@ -28,7 +29,8 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "package": "ca.sitepics.tool"
     },
     "web": {
       "output": "static",
@@ -54,7 +56,9 @@
       ],
       [
         "expo-camera",
-        { "cameraPermission": "We need camera access to take photos" }
+        {
+          "cameraPermission": "We need camera access to take photos"
+        }
       ]
     ],
     "experiments": {
