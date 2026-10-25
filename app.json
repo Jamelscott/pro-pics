@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "pro-pics",
+    "name": "Site Pics",
     "slug": "pro-pics",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "propics",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "We need camera access to take photos",
@@ -41,17 +41,21 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#ffffff",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120,
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/images/splash-icon.png"
+          }
         }
       ],
       "expo-sharing",
       [
         "expo-media-library",
         {
-          "photosPermission": "Pro Pics reads the photos you saved to link them to projects.",
-          "savePhotosPermission": "Pro Pics saves project photos to your camera roll."
+          "photosPermission": "Site Pics reads the photos you saved to link them to projects.",
+          "savePhotosPermission": "Site Pics saves project photos to your camera roll."
         }
       ],
       [

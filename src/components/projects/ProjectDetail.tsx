@@ -221,20 +221,23 @@ export default function ProjectDetail({
 
   useEffect(() => {
     translateX.value = withTiming(0, { duration: 250 });
-  }, [translateX]);
+  }, []);
 
   const edgeSwipeBack = Gesture.Pan()
     .activeOffsetX(10)
     .failOffsetY([-20, 20])
     .onUpdate((e) => {
+      // eslint-disable-next-line react-hooks/immutability
       translateX.value = Math.max(0, e.translationX);
     })
     .onEnd((e) => {
       if (e.translationX > width * 0.35 || e.velocityX > 600) {
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = withTiming(width, { duration: 200 }, (finished) => {
           if (finished) runOnJS(onBack)();
         });
       } else {
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = withSpring(0);
       }
     });
@@ -562,6 +565,7 @@ function GalleryViewer({
   };
 
   const slideOut = () => {
+    // eslint-disable-next-line react-hooks/immutability
     translateX.value = withTiming(width, { duration: 200 }, (finished) => {
       if (finished) runOnJS(onClose)();
     });
@@ -571,14 +575,17 @@ function GalleryViewer({
     .activeOffsetX(10)
     .failOffsetY([-20, 20])
     .onUpdate((e) => {
+      // eslint-disable-next-line react-hooks/immutability
       translateX.value = Math.max(0, e.translationX);
     })
     .onEnd((e) => {
       if (e.translationX > width * 0.35 || e.velocityX > 600) {
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = withTiming(width, { duration: 200 }, (finished) => {
           if (finished) runOnJS(onClose)();
         });
       } else {
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = withSpring(0);
       }
     });
@@ -867,32 +874,42 @@ function ZoomableGalleryImage({
 
   useEffect(() => {
     if (resetToken === 0) return;
+    // eslint-disable-next-line react-hooks/immutability
     scale.value = withSpring(1);
+    // eslint-disable-next-line react-hooks/immutability
     savedScale.value = 1;
+    // eslint-disable-next-line react-hooks/immutability
     translateX.value = withSpring(0);
+    // eslint-disable-next-line react-hooks/immutability
     translateY.value = withSpring(0);
-    setZoomed(false);
-  }, [resetToken, scale, savedScale, translateX, translateY]);
+    runOnJS(setZoomed)(false);
+  }, [resetToken]);
 
   const pan = Gesture.Pan()
     .enabled(zoomed)
     .maxPointers(1)
     .onStart(() => {
+      // eslint-disable-next-line react-hooks/immutability
       startX.value = translateX.value;
+      // eslint-disable-next-line react-hooks/immutability
       startY.value = translateY.value;
     })
     .onUpdate((event) => {
       if (scale.value <= 1) {
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = 0;
+        // eslint-disable-next-line react-hooks/immutability
         translateY.value = 0;
         return;
       }
       const maxX = (dimensions.width * (scale.value - 1)) / 2;
       const maxY = (dimensions.height * (scale.value - 1)) / 2;
+      // eslint-disable-next-line react-hooks/immutability
       translateX.value = Math.max(
         -maxX,
         Math.min(maxX, startX.value + event.translationX),
       );
+      // eslint-disable-next-line react-hooks/immutability
       translateY.value = Math.max(
         -maxY,
         Math.min(maxY, startY.value + event.translationY),
@@ -904,19 +921,27 @@ function ZoomableGalleryImage({
       runOnJS(setZoomState)(true);
     })
     .onUpdate((event) => {
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = Math.max(0.5, Math.min(4, savedScale.value * event.scale));
       if (scale.value <= 1) {
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = 0;
+        // eslint-disable-next-line react-hooks/immutability
         translateY.value = 0;
       }
     })
     .onEnd(() => {
+      // eslint-disable-next-line react-hooks/immutability
       savedScale.value = scale.value;
       const isAwayFromDefault = Math.abs(scale.value - 1) >= 0.01;
       if (!isAwayFromDefault) {
+        // eslint-disable-next-line react-hooks/immutability
         scale.value = withSpring(1);
+        // eslint-disable-next-line react-hooks/immutability
         savedScale.value = 1;
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = withSpring(0);
+        // eslint-disable-next-line react-hooks/immutability
         translateY.value = withSpring(0);
       }
       runOnJS(setZoomState)(isAwayFromDefault);
@@ -926,13 +951,19 @@ function ZoomableGalleryImage({
     .numberOfTaps(2)
     .onEnd(() => {
       if (Math.abs(scale.value - 1) > 0.01) {
+        // eslint-disable-next-line react-hooks/immutability
         scale.value = withSpring(1);
+        // eslint-disable-next-line react-hooks/immutability
         savedScale.value = 1;
+        // eslint-disable-next-line react-hooks/immutability
         translateX.value = withSpring(0);
+        // eslint-disable-next-line react-hooks/immutability
         translateY.value = withSpring(0);
         runOnJS(setZoomState)(false);
       } else {
+        // eslint-disable-next-line react-hooks/immutability
         scale.value = withSpring(2.5);
+        // eslint-disable-next-line react-hooks/immutability
         savedScale.value = 2.5;
         runOnJS(setZoomState)(true);
       }

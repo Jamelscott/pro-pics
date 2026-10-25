@@ -13,10 +13,14 @@ import { supabase } from "@/lib/supabase";
 import {
   getUserProfile,
   updateUserProfile,
+  updateUserSaveLocation,
   updateUserTheme,
+  type SaveLocation,
   type ThemePreference,
   type UserProfile,
 } from "@/lib/user";
+
+export type SaveDestinationPreference = SaveLocation;
 
 interface UserStorageSummary {
   usedBytes: number;
@@ -39,6 +43,8 @@ interface UserContextValue {
   setIsRecoveringPassword: (value: boolean) => void;
   refreshProfile: () => Promise<void>;
   updateTheme: (theme: ThemePreference) => Promise<UserProfile>;
+  saveDestination: SaveDestinationPreference;
+  setSaveDestination: (pref: SaveDestinationPreference) => Promise<void>;
   updateProfile: (updates: Partial<Omit<UserProfile, "id" | "created_at" | "updated_at">>) => Promise<UserProfile>;
 }
 
@@ -166,6 +172,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     [user],
   );
 
+  const saveDestination: SaveDestinationPreference =
+    profile?.save_location ?? "ask";
+
+  const setSaveDestination = useCallback(
+    async (pref: SaveDestinationPreference) => {
+      if (!user) {
+        throw new Error("Cannot update save location: User is not authenticated.");
+      }
+      const updated = await updateUserSaveLocation(user.id, pref);
+      setProfile(updated);
+    },
+    [user],
+  );
+
   const updateProfile = useCallback(
     async (updates: Partial<Omit<UserProfile, "id" | "created_at" | "updated_at">>) => {
       if (!user) {
@@ -213,8 +233,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       refreshProfile,
       updateTheme,
       updateProfile,
+      saveDestination,
+      setSaveDestination,
     }),
-    [user, session, profile, storage, isLoading, isRecoveringPassword, refreshProfile, updateTheme, updateProfile],
+    [user, session, profile, storage, isLoading, isRecoveringPassword, refreshProfile, updateTheme, updateProfile, saveDestination, setSaveDestination],
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

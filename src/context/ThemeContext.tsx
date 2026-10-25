@@ -52,6 +52,7 @@ export function ThemePreferenceProvider({ children }: { children: React.ReactNod
   // 2. Synchronize theme when user profile changes in UserContext
   useEffect(() => {
     if (profile?.theme) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setThemePreferenceState(profile.theme);
       applyAppearance(profile.theme);
       AsyncStorage.setItem(THEME_STORAGE_KEY, profile.theme).catch(() => {});

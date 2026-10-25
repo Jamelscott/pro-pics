@@ -1,5 +1,13 @@
-import { useState } from "react";
 import { router } from "expo-router";
+import {
+  ChevronLeft,
+  Cloud,
+  HelpCircle,
+  Moon,
+  Smartphone,
+  Sun,
+} from "lucide-react-native";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,10 +17,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, Moon, Smartphone, Sun } from "lucide-react-native";
 
-import { useTheme } from "@/hooks/use-theme";
 import { useUserThemePreference } from "@/context/ThemeContext";
+import { useUser, type SaveDestinationPreference } from "@/context/UserContext";
+import { useTheme } from "@/hooks/use-theme";
 import { signOut } from "@/lib/auth";
 import type { ThemePreference } from "@/lib/user";
 
@@ -26,10 +34,21 @@ const THEME_OPTIONS: Array<{
   { pref: "dark", label: "Dark", icon: Moon },
 ];
 
+const SAVE_OPTIONS: Array<{
+  pref: SaveDestinationPreference;
+  label: string;
+  icon: typeof Smartphone;
+}> = [
+  { pref: "cloud", label: "Cloud", icon: Cloud },
+  { pref: "device", label: "Device", icon: Smartphone },
+  { pref: "ask", label: "Always ask", icon: HelpCircle },
+];
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { themePreference, setThemePreference } = useUserThemePreference();
+  const { user, saveDestination, setSaveDestination } = useUser();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isUpdatingTheme, setIsUpdatingTheme] = useState(false);
 
@@ -45,6 +64,20 @@ export default function SettingsScreen() {
       );
     } finally {
       setIsUpdatingTheme(false);
+    }
+  };
+
+  const handleSelectSaveDestination = async (
+    pref: SaveDestinationPreference,
+  ) => {
+    if (pref === saveDestination) return;
+    try {
+      await setSaveDestination(pref);
+    } catch (error: unknown) {
+      Alert.alert(
+        "Couldn't update save setting",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     }
   };
 
@@ -124,27 +157,93 @@ export default function SettingsScreen() {
           );
         })}
       </View>
-
       <View style={styles.spacer} />
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isSigningOut, busy: isSigningOut }}
-        disabled={isSigningOut}
-        onPress={handleLogout}
-        style={({ pressed }) => [
-          styles.button,
-          styles.logoutButton,
-          pressed && styles.pressed,
-          isSigningOut && styles.disabled,
-        ]}
-      >
-        {isSigningOut ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={[styles.buttonText, styles.logoutText]}>Log out</Text>
-        )}
-      </Pressable>
+      <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>
+        autosave destination
+      </Text>
+      <View style={styles.themeOptionsRow}>
+        {SAVE_OPTIONS.map(({ pref, label, icon: Icon }) => {
+          const isSelected = saveDestination === pref;
+          return (
+            <Pressable
+              key={pref}
+              accessibilityRole="button"
+              accessibilityLabel={`Save destination: ${label}`}
+              accessibilityState={{ selected: isSelected }}
+              onPress={() => handleSelectSaveDestination(pref)}
+              style={({ pressed }) => [
+                styles.themeOptionButton,
+                {
+                  backgroundColor: isSelected
+                    ? theme.backgroundSelected
+                    : theme.backgroundElement,
+                  borderColor: isSelected ? theme.text : "transparent",
+                },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Icon
+                size={18}
+                color={isSelected ? theme.text : theme.textSecondary}
+                strokeWidth={2}
+              />
+              <Text
+                style={[
+                  styles.themeOptionText,
+                  {
+                    color: isSelected ? theme.text : theme.textSecondary,
+                    fontWeight: isSelected ? "700" : "500",
+                  },
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.spacer} />
+      <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>
+        Account
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "stretch", gap: 12 }}>
+        <View
+          style={[
+            styles.accountCard,
+            { backgroundColor: theme.backgroundElement, flex: 2 },
+          ]}
+        >
+          <Text style={[styles.accountLabel, { color: theme.textSecondary }]}>
+            Signed in as
+          </Text>
+          <Text
+            numberOfLines={1}
+            selectable
+            style={[styles.accountEmail, { color: theme.text }]}
+          >
+            {user?.email ?? "Unknown"}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isSigningOut, busy: isSigningOut }}
+          disabled={isSigningOut}
+          onPress={handleLogout}
+          style={({ pressed }) => [
+            styles.button,
+            styles.logoutButton,
+            pressed && styles.pressed,
+            isSigningOut && styles.disabled,
+            { flex: 1, minHeight: 0 },
+          ]}
+        >
+          {isSigningOut ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.buttonText, styles.logoutText]}>Log out</Text>
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -180,6 +279,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
   },
+  accountCard: {
+    flex: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 2,
+  },
+  accountLabel: { fontSize: 13 },
+  accountEmail: { fontSize: 16, fontWeight: "600" },
   themeOptionsRow: {
     flexDirection: "row",
     gap: 8,

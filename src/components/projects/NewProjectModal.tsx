@@ -1,16 +1,16 @@
+import BottomSheetModal from "@/components/ui/bottom-sheet-modal";
+import { useInk, useThemedStyles, type Ink } from "@/hooks/use-themed-styles";
+import { Check } from "lucide-react-native";
+import { useState } from "react";
 import {
   ActivityIndicator,
-  StyleSheet,
   Keyboard,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import BottomSheetModal from "@/components/ui/bottom-sheet-modal";
-import { useInk, useThemedStyles, type Ink } from "@/hooks/use-themed-styles";
-import { Check } from "lucide-react-native";
-import { useState } from "react";
 
 const projectColors = [
   "#7dd3fc",
@@ -20,14 +20,17 @@ const projectColors = [
   "#fca5a5",
   "#fdba74",
   "#a5b4fc",
-  "#5eead4",
 ];
 
 interface NewProjectModalProps {
   visible: boolean;
   isCreating?: boolean;
   onClose: () => void;
-  onCreate: (name: string, client: string, color: string) => void | Promise<void>;
+  onCreate: (
+    name: string,
+    client: string,
+    color: string,
+  ) => void | Promise<void>;
 }
 
 export default function NewProjectModal({

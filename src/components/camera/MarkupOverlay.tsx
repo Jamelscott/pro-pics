@@ -1,6 +1,7 @@
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
+import Svg, { Path } from "react-native-svg";
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -23,6 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Spacing } from "@/constants/theme";
+import { GlassCapsule } from "@/components/ui/glass-capsule";
 
 type ItemType = "text" | "rect" | "circle" | "arrow" | "emoji";
 
@@ -38,6 +41,22 @@ type MarkupItem = {
   length: number;
 };
 
+type Stroke = {
+  id: number;
+  color: string;
+  width: number;
+  points: { x: number; y: number }[];
+};
+
+const STROKE_WIDTHS = [3, 6, 12];
+const strokePath = (pts: Stroke["points"]) => {
+  const [first, ...rest] = pts;
+  const d = `M${first.x} ${first.y}`;
+  return rest.length
+    ? d + rest.map((p) => `L${p.x} ${p.y}`).join("")
+    : `${d}L${first.x} ${first.y}`;
+};
+
 const COLORS = [
   "#ffffff",
   "#ff3b30",
@@ -46,7 +65,20 @@ const COLORS = [
   "#0a84ff",
   "#000000",
 ];
-const EMOJIS = ["😀", "😂", "😍", "😎", "👍", "🔥", "❤️", "⭐", "✅", "❌", "⚠️", "📍"];
+const EMOJIS = [
+  "😀",
+  "😂",
+  "😍",
+  "😎",
+  "👍",
+  "🔥",
+  "❤️",
+  "⭐",
+  "✅",
+  "❌",
+  "⚠️",
+  "📍",
+];
 const SHAPE_SIZE = 120;
 const TRASH_SIZE = 64;
 const HIT_PADDING = 28;
@@ -55,15 +87,21 @@ const ARROW_HEIGHT = 36;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 6;
 
-type Props = { active: boolean; onDone: () => void };
+type Props = {
+  active: boolean;
+  onDone: () => void;
+  onDiscard?: () => void;
+};
 
-export function MarkupOverlay({ active, onDone }: Props) {
+export function MarkupOverlay({ active, onDone, onDiscard }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [items, setItems] = useState<MarkupItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [color, setColor] = useState(COLORS[1]);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [strokeWidth, setStrokeWidth] = useState(STROKE_WIDTHS[1]);
 
   const update = (id: number, patch: Partial<MarkupItem>) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -101,8 +139,10 @@ export function MarkupOverlay({ active, onDone }: Props) {
   const [dragging, setDragging] = useState(false);
   const [overTrash, setOverTrash] = useState(false);
   const nextId = useRef(1);
-  const [openMenu, setOpenMenu] = useState<"color" | "shape" | "emoji" | null>(null);
-  const toggle = (menu: "color" | "shape" | "emoji") =>
+  const [openMenu, setOpenMenu] = useState<
+    "color" | "shape" | "emoji" | "draw" | null
+  >(null);
+  const toggle = (menu: "color" | "shape" | "emoji" | "draw") =>
     setOpenMenu((m) => (m === menu ? null : menu));
 
   const trashCenter = {
@@ -116,12 +156,72 @@ export function MarkupOverlay({ active, onDone }: Props) {
 
   const activeColor = selected?.color ?? color;
 
+  const snapshot = useRef<MarkupItem[]>([]);
+  const strokeSnapshot = useRef<Stroke[]>([]);
+  useEffect(() => {
+    if (active) {
+      snapshot.current = items;
+      strokeSnapshot.current = strokes;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const discard = () => {
+    setItems(snapshot.current);
+    setStrokes(strokeSnapshot.current);
+    setSelectedId(null);
+    setEditingId(null);
+    setOpenMenu(null);
+    (onDiscard ?? onDone)();
+  };
+
+  const goBack = () => {
+    if (items === snapshot.current && strokes === strokeSnapshot.current) {
+      return onDone();
+    }
+    Alert.alert(
+      "Discard changes?",
+      "Your markup changes will be lost if you go back.",
+      [
+        { text: "Keep editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: discard },
+      ],
+    );
+  };
+
   const finish = () => {
     setSelectedId(null);
     setEditingId(null);
     setOpenMenu(null);
     onDone();
   };
+
+  const drawing = active && openMenu === "draw";
+  const drawGesture = Gesture.Pan()
+    .runOnJS(true)
+    .enabled(drawing)
+    .minDistance(0)
+    .onBegin((e) => {
+      setSelectedId(null);
+      setStrokes((prev) => [
+        ...prev,
+        {
+          id: (prev[prev.length - 1]?.id ?? 0) + 1,
+          color,
+          width: strokeWidth,
+          points: [{ x: e.x, y: e.y }],
+        },
+      ]);
+    })
+    .onUpdate((e) => {
+      setStrokes((prev) =>
+        prev.map((st, i) =>
+          i === prev.length - 1
+            ? { ...st, points: [...st.points, { x: e.x, y: e.y }] }
+            : st,
+        ),
+      );
+    });
 
   const chooseColor = (c: string) => {
     setColor(c);
@@ -140,6 +240,20 @@ export function MarkupOverlay({ active, onDone }: Props) {
           setEditingId(null);
         }}
       />
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        {strokes.map((st) => (
+          <Path
+            key={st.id}
+            d={strokePath(st.points)}
+            stroke={st.color}
+            strokeWidth={st.width}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        ))}
+      </Svg>
+
       {items.map((item) => (
         <MarkupItemView
           key={item.id}
@@ -171,6 +285,12 @@ export function MarkupOverlay({ active, onDone }: Props) {
         />
       ))}
 
+      {drawing && (
+        <GestureDetector gesture={drawGesture}>
+          <View style={StyleSheet.absoluteFill} />
+        </GestureDetector>
+      )}
+
       <TrashTarget
         visible={active && dragging}
         hot={overTrash}
@@ -179,24 +299,41 @@ export function MarkupOverlay({ active, onDone }: Props) {
       />
 
       {active && (
-        <View
-          style={[styles.toolbar, { bottom: insets.bottom + Spacing.three }]}
-        >
-          <View style={styles.row}>
+        <View style={[styles.topLeft, { top: insets.top + Spacing.three }]}>
+          <GlassCapsule style={styles.back}>
             <Pressable
-              accessibilityLabel="Color"
-              style={[
-                styles.button,
-                openMenu === "color" && styles.buttonActive,
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              onPress={goBack}
+              style={({ pressed }) => [
+                styles.buttonPress,
+                pressed && styles.pressed,
               ]}
-              onPress={() => toggle("color")}
             >
-              <View
-                style={[styles.colorDot, { backgroundColor: activeColor }]}
+              <SymbolView
+                name={
+                  {
+                    ios: "chevron.left",
+                    android: "arrow_back",
+                    web: "arrow_back",
+                  } as never
+                }
+                tintColor="#fff"
+                size={22}
               />
             </Pressable>
+          </GlassCapsule>
+        </View>
+      )}
+
+      {active && (
+        <View
+          pointerEvents="box-none"
+          style={[styles.toolbar, { bottom: insets.bottom + Spacing.three }]}
+        >
+          <View style={styles.menuRow}>
             {openMenu === "color" && (
-              <View style={styles.menu}>
+              <GlassCapsule style={styles.menu}>
                 {COLORS.map((c) => (
                   <Pressable
                     key={c}
@@ -211,22 +348,10 @@ export function MarkupOverlay({ active, onDone }: Props) {
                     <View style={[styles.swatch, { backgroundColor: c }]} />
                   </Pressable>
                 ))}
-              </View>
+              </GlassCapsule>
             )}
-          </View>
-          <View style={styles.row}>
-            <ToolButton
-              label="Shapes"
-              name={{
-                ios: "square.on.circle",
-                android: "category",
-                web: "category",
-              }}
-              active={openMenu === "shape"}
-              onPress={() => toggle("shape")}
-            />
             {openMenu === "shape" && (
-              <View style={styles.menu}>
+              <GlassCapsule style={styles.menu}>
                 <ToolButton
                   plain
                   label="Add rectangle"
@@ -253,55 +378,153 @@ export function MarkupOverlay({ active, onDone }: Props) {
                   }}
                   onPress={() => add("arrow")}
                 />
-              </View>
+              </GlassCapsule>
             )}
-          </View>
-          <View style={styles.row}>
-            <Pressable
-              accessibilityLabel="Emoji"
-              style={[
-                styles.button,
-                openMenu === "emoji" && styles.buttonActive,
-              ]}
-              onPress={() => toggle("emoji")}
-            >
-              <Text style={styles.emojiButton}>😀</Text>
-            </Pressable>
-            {openMenu === "emoji" && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={[styles.emojiMenu, { maxWidth: width - 96 }]}
-                contentContainerStyle={styles.emojiMenuContent}
-                keyboardShouldPersistTaps="handled"
-              >
-                {EMOJIS.map((e) => (
+            {openMenu === "draw" && (
+              <GlassCapsule style={styles.menu}>
+                {STROKE_WIDTHS.map((w) => (
                   <Pressable
-                    key={e}
-                    accessibilityLabel={`Add ${e}`}
-                    style={styles.menuButton}
-                    onPress={() => add("emoji", e)}
+                    key={w}
+                    accessibilityLabel={`Line thickness ${w}`}
+                    onPress={() => setStrokeWidth(w)}
+                    style={[
+                      styles.menuButton,
+                      strokeWidth === w && styles.activeFill,
+                    ]}
                   >
-                    <Text style={styles.emojiButton}>{e}</Text>
+                    <View
+                      style={{
+                        width: 28,
+                        height: w,
+                        borderRadius: w / 2,
+                        backgroundColor: color,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: "rgba(255,255,255,0.5)",
+                      }}
+                    />
                   </Pressable>
                 ))}
-              </ScrollView>
+                <Pressable
+                  accessibilityLabel="Undo last line"
+                  disabled={strokes.length === 0}
+                  onPress={() => setStrokes((prev) => prev.slice(0, -1))}
+                  style={({ pressed }) => [
+                    styles.menuButton,
+                    pressed && styles.pressed,
+                    strokes.length === 0 && { opacity: 0.35 },
+                  ]}
+                >
+                  <SymbolView
+                    name={
+                      {
+                        ios: "arrow.uturn.backward",
+                        android: "undo",
+                        web: "undo",
+                      } as never
+                    }
+                    tintColor="#fff"
+                    size={22}
+                  />
+                </Pressable>
+              </GlassCapsule>
+            )}
+            {openMenu === "emoji" && (
+              <GlassCapsule
+                style={[styles.emojiMenu, { maxWidth: width - 96 }]}
+              >
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.emojiMenuContent}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {EMOJIS.map((e) => (
+                    <Pressable
+                      key={e}
+                      accessibilityLabel={`Add ${e}`}
+                      style={styles.menuButton}
+                      onPress={() => add("emoji", e)}
+                    >
+                      <Text style={styles.emojiButton}>{e}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </GlassCapsule>
             )}
           </View>
-          <View style={styles.row}>
-            <ToolButton
-              label="Add text"
-              name={{ ios: "textformat", android: "title", web: "title" }}
-              onPress={() => add("text")}
-            />
+          <View style={styles.bar}>
+            <View>
+              <ToolCapsule
+                label="Color"
+                active={openMenu === "color"}
+                onPress={() => toggle("color")}
+              >
+                <View
+                  style={[styles.colorDot, { backgroundColor: activeColor }]}
+                />
+              </ToolCapsule>
+            </View>
+            <View>
+              <ToolButton
+                label="Shapes"
+                name={{
+                  ios: "square.on.circle",
+                  android: "category",
+                  web: "category",
+                }}
+                active={openMenu === "shape"}
+                onPress={() => toggle("shape")}
+              />
+            </View>
+            <View>
+              <ToolButton
+                label="Freeform"
+                name={{ ios: "scribble", android: "draw", web: "draw" }}
+                active={openMenu === "draw"}
+                onPress={() => toggle("draw")}
+              />
+            </View>
+            <View>
+              <ToolCapsule
+                label="Emoji"
+                active={openMenu === "emoji"}
+                onPress={() => toggle("emoji")}
+              >
+                <Text style={styles.emojiButton}>😀</Text>
+              </ToolCapsule>
+            </View>
+            <View>
+              <ToolButton
+                label="Add text"
+                name={{ ios: "textformat", android: "title", web: "title" }}
+                onPress={() => add("text")}
+              />
+            </View>
+            <GlassCapsule style={styles.done}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Done"
+                onPress={finish}
+                style={({ pressed }) => [
+                  styles.donePress,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <SymbolView
+                  name={
+                    {
+                      ios: "checkmark",
+                      android: "check",
+                      web: "check",
+                    } as never
+                  }
+                  tintColor="#fff"
+                  size={24}
+                  weight="bold"
+                />
+              </Pressable>
+            </GlassCapsule>
           </View>
-          <Pressable
-            accessibilityLabel="Done"
-            style={styles.done}
-            onPress={finish}
-          >
-            <Text style={styles.doneText}>Done</Text>
-          </Pressable>
         </View>
       )}
     </GestureHandlerRootView>
@@ -375,18 +598,55 @@ function ToolButton({
   active?: boolean;
   plain?: boolean;
 }) {
+  const icon = <SymbolView name={name as never} tintColor="#fff" size={22} />;
+  if (plain) {
+    return (
+      <Pressable
+        accessibilityLabel={label}
+        style={({ pressed }) => [
+          styles.menuButton,
+          pressed && styles.pressed,
+          active && styles.activeFill,
+        ]}
+        onPress={onPress}
+      >
+        {icon}
+      </Pressable>
+    );
+  }
   return (
-    <Pressable
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        plain ? styles.menuButton : styles.button,
-        active && styles.buttonActive,
-        pressed && styles.buttonPressed,
-      ]}
-      onPress={onPress}
-    >
-      <SymbolView name={name as never} tintColor="#fff" size={22} />
-    </Pressable>
+    <ToolCapsule label={label} active={active} onPress={onPress}>
+      {icon}
+    </ToolCapsule>
+  );
+}
+
+function ToolCapsule({
+  label,
+  active,
+  onPress,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <GlassCapsule style={styles.button}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.buttonPress,
+          pressed && styles.pressed,
+          active && styles.activeFill,
+        ]}
+      >
+        {children}
+      </Pressable>
+    </GlassCapsule>
   );
 }
 
@@ -608,30 +868,26 @@ const styles = StyleSheet.create({
   toolbar: {
     position: "absolute",
     right: Spacing.three,
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: Spacing.three,
-  },
-  row: {
-    flexDirection: "row-reverse",
-    gap: Spacing.two,
+    flexDirection: "row",
     alignItems: "center",
+    gap: Spacing.two,
   },
-  button: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  topLeft: { position: "absolute", left: Spacing.three },
+  back: { width: 48, height: 48, borderRadius: 24 },
+  menuRow: { alignItems: "flex-end" },
+  bar: {
+    flexDirection: "column",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+  button: { width: 48, height: 48, borderRadius: 24 },
+  buttonPress: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(110,110,118,0.75)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.25)",
   },
-  buttonActive: {
-    backgroundColor: "rgba(10,132,255,0.85)",
-    borderColor: "rgba(255,255,255,0.6)",
-  },
-  buttonPressed: { transform: [{ scale: 0.92 }], opacity: 0.85 },
+  activeFill: { backgroundColor: "rgba(10,132,255,0.85)" },
+  pressed: { backgroundColor: "rgba(255,255,255,0.22)" },
   menu: {
     flexDirection: "row",
     alignItems: "center",
@@ -639,9 +895,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(90,90,98,0.85)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.25)",
   },
   menuButton: {
     width: 40,
@@ -675,14 +928,16 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.5)",
   },
   done: {
-    height: 44,
-    paddingHorizontal: Spacing.four,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(52,199,89,0.85)",
+  },
+  donePress: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
   },
-  doneText: { color: "#000", fontWeight: "700", fontSize: 16 },
   itemOuter: { position: "absolute" },
   item: { padding: HIT_PADDING, borderRadius: 6 },
   handle: {
@@ -744,9 +999,6 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(90,90,98,0.85)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.25)",
   },
   emojiMenuContent: {
     alignItems: "center",

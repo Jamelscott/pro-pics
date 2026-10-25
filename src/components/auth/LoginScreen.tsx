@@ -51,8 +51,8 @@ type LoginScreenProps = {
 export default function LoginScreen({ sessionError }: LoginScreenProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === "dark" ? "dark" : "light"];
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("itsjamelscott@gmail.com");
+  const [password, setPassword] = useState("12345678");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const passwordInputRef = useRef<TextInput>(null);
@@ -157,10 +157,7 @@ export default function LoginScreen({ sessionError }: LoginScreenProps) {
       style={[styles.safeArea, { backgroundColor: colors.background }]}
       edges={["top", "bottom"]}
     >
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={styles.keyboardView} behavior="padding">
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -171,7 +168,7 @@ export default function LoginScreen({ sessionError }: LoginScreenProps) {
               <Text style={styles.brandMarkText}>P</Text>
             </View>
             <Text style={[styles.brandName, { color: colors.text }]}>
-              Pro Pics
+              Site Pics
             </Text>
             <Text style={[styles.heading, { color: colors.text }]}>
               {HEADINGS[mode].title}

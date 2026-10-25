@@ -2,10 +2,12 @@ import { supabase } from "./supabase";
 
 export type ThemePreference = "light" | "dark" | "system";
 export type UserTier = "free" | "pro";
+export type SaveLocation = "ask" | "device" | "cloud";
 
 export interface UserProfile {
   id: string;
   theme: ThemePreference;
+  save_location: SaveLocation | null;
   tier: UserTier;
   storage_limit_bytes: number;
   storage_used_bytes: number;
@@ -14,7 +16,7 @@ export interface UserProfile {
 }
 
 const PROFILE_FIELDS =
-  "id, theme, tier, storage_limit_bytes, storage_used_bytes, created_at, updated_at";
+  "id, theme, save_location, tier, storage_limit_bytes, storage_used_bytes, created_at, updated_at";
 
 /**
  * Fetches the user profile from the `users` table for a given user ID.
@@ -68,6 +70,16 @@ export async function updateUserProfile(
   }
 
   return data as UserProfile;
+}
+
+/**
+ * Updates where photos are saved by default ("ask" prompts every time).
+ */
+export async function updateUserSaveLocation(
+  userId: string,
+  saveLocation: SaveLocation,
+): Promise<UserProfile> {
+  return updateUserProfile(userId, { save_location: saveLocation });
 }
 
 /**

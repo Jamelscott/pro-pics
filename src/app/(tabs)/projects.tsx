@@ -4,14 +4,22 @@ import ProjectDetail from "@/components/projects/ProjectDetail";
 import ProjectHeader from "@/components/projects/ProjectHeader";
 import SearchBar from "@/components/projects/SearchBar";
 import { useProjectStyles } from "@/components/projects/styles";
-import ConfirmDeleteModal from "@/components/ui/confirm-delete-modal";
 import { useSetTabBarHidden } from "@/components/TabBarVisibilityContext";
+import ConfirmDeleteModal from "@/components/ui/confirm-delete-modal";
 import { useLibrary, type Project } from "@/lib/library";
 import { createProject, deleteProjects } from "@/lib/projects";
 import { matchMedia, type Filters } from "@/utils/functions/projectPageHelpers";
-import { useLocalSearchParams, router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const defaultFilters: Filters = { range: "all", kind: "all", storage: "all" };
 
@@ -28,7 +36,9 @@ export default function ProjectsScreen() {
   const [filters, setFilters] = useState(defaultFilters);
   const [creating, setCreating] = useState(false);
   const [savingProject, setSavingProject] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
 
   const { projectId: linkProjectId, mediaId: linkMediaId } =
     useLocalSearchParams<{ projectId?: string; mediaId?: string }>();
@@ -37,6 +47,7 @@ export default function ProjectsScreen() {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const setTabBarHidden = useSetTabBarHidden();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     setTabBarHidden(editing);
@@ -64,7 +75,10 @@ export default function ProjectsScreen() {
       exitEditing();
       await refresh();
     } catch (e) {
-      Alert.alert("Delete failed", e instanceof Error ? e.message : "Try again.");
+      Alert.alert(
+        "Delete failed",
+        e instanceof Error ? e.message : "Try again.",
+      );
     } finally {
       setDeleting(false);
     }
@@ -104,14 +118,13 @@ export default function ProjectsScreen() {
   };
 
   // Deep links open projects directly, and open media when the camera supplies an ID.
-  const linkedProject =
-    linkProjectId
-      ? projects.find(
-          (p) =>
-            p.id === linkProjectId &&
-            (!linkMediaId || p.media.some((m) => m.id === linkMediaId)),
-        )
-      : undefined;
+  const linkedProject = linkProjectId
+    ? projects.find(
+        (p) =>
+          p.id === linkProjectId &&
+          (!linkMediaId || p.media.some((m) => m.id === linkMediaId)),
+      )
+    : undefined;
   const effectiveProjectId = selectedProjectId ?? linkedProject?.id ?? null;
   const selectedProject =
     projects.find((p) => p.id === effectiveProjectId) ?? null;
@@ -139,7 +152,10 @@ export default function ProjectsScreen() {
     <View style={{ flex: 1 }}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ProjectHeader

@@ -1,10 +1,17 @@
 import { CameraView, useCameraPermissions, type CameraType } from "expo-camera";
 import { File } from "expo-file-system";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Image } from "expo-image";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,28 +19,94 @@ import {
   StyleSheet,
   View,
   type PressableStateCallbackType,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 
 import { MarkupOverlay } from "@/components/camera/MarkupOverlay";
-import { useSetTabBarHidden } from "@/components/TabBarVisibilityContext";
-import { ThemedText } from "@/components/ui/scaffolding/themed-text";
-import { ThemedView } from "@/components/ui/scaffolding/themed-view";
 import SavedToast from "@/components/camera/SavedToast";
 import StorageLimitModal from "@/components/camera/StorageLimitModal";
-import { useUser } from "@/context/UserContext";
 import MoveMediaModal, {
   type MoveDestination,
 } from "@/components/projects/MoveMediaModal";
 import NewProjectModal from "@/components/projects/NewProjectModal";
+import { useSetTabBarHidden } from "@/components/TabBarVisibilityContext";
+import { ThemedText } from "@/components/ui/scaffolding/themed-text";
+import { ThemedView } from "@/components/ui/scaffolding/themed-view";
 import { Spacing } from "@/constants/theme";
+import { useUser } from "@/context/UserContext";
 import { useLibrary } from "@/lib/library";
-import { createFolder, createProject } from "@/lib/projects";
 import { saveToCameraRoll } from "@/lib/localMedia";
 import { uploadAndCreateMedia } from "@/lib/mediaUpload";
+import { createFolder, createProject } from "@/lib/projects";
 
 const THUMB_WIDTH = 400;
+
+const BAR_HEIGHT = 62;
+const BAR_ITEM_WIDTH = 88;
+
+type BarItem = {
+  label: string;
+  name: { ios: SFSymbol; android: string; web: string };
+  onPress: () => void;
+};
+
+function GlassOrView({
+  style,
+  children,
+}: {
+  style: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
+  if (isLiquidGlassAvailable()) {
+    return (
+      <GlassView isInteractive style={style}>
+        {children}
+      </GlassView>
+    );
+  }
+  return <View style={[style, styles.barFallback]}>{children}</View>;
+}
+
+// Each action is its own glass capsule; nothing stays selected, only pressed.
+function ActionBar({ items, bottom }: { items: BarItem[]; bottom: number }) {
+  const glass = isLiquidGlassAvailable();
+  const Container = glass ? GlassView : View;
+
+  return (
+    <View style={[styles.barWrap, { bottom }]} pointerEvents="box-none">
+      {items.map((item) => (
+        <Container
+          key={item.label}
+          {...(glass ? { isInteractive: true } : {})}
+          style={[styles.barItem, !glass && styles.barFallback]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+            onPress={item.onPress}
+            style={({ pressed }) => [
+              styles.barPress,
+              pressed && styles.barItemPressed,
+            ]}
+          >
+            <SymbolView
+              name={item.name as never}
+              tintColor="#fff"
+              size={22}
+              style={styles.barIcon}
+            />
+            <ThemedText numberOfLines={1} style={styles.barLabel}>
+              {item.label}
+            </ThemedText>
+          </Pressable>
+        </Container>
+      ))}
+    </View>
+  );
+}
 
 const pillStyle = ({ pressed }: PressableStateCallbackType) => [
   styles.pill,
@@ -55,7 +128,7 @@ export default function CameraScreen() {
   }>();
   const [uploading, setUploading] = useState(false);
   const [storageFullOpen, setStorageFullOpen] = useState(false);
-  const { storage } = useUser();
+  const { storage, saveDestination } = useUser();
   const [savedToast, setSavedToast] = useState<{
     mediaId: string;
     projectId: string;
@@ -167,7 +240,10 @@ export default function CameraScreen() {
       setSaveOpen(false);
       router.setParams({ projectId: undefined });
     } catch (e) {
-      Alert.alert(saveMode === "device" ? "Save failed" : "Upload failed", e instanceof Error ? e.message : "Try again.");
+      Alert.alert(
+        saveMode === "device" ? "Save failed" : "Upload failed",
+        e instanceof Error ? e.message : "Try again.",
+      );
     } finally {
       setUploading(false);
     }
@@ -256,16 +332,42 @@ export default function CameraScreen() {
     </Pressable>
   );
 
+  const goBack = () => {
+    // Discard any in-progress photo so returning shows the live camera.
+    setPhotoUri(null);
+    setMarkingUp(false);
+    setSaveOpen(false);
+    setPickerOpen(false);
+    router.setParams({ projectId: undefined });
+    router.navigate(startProjectId ? "/projects" : "/");
+  };
+
   const backButton = (
     <View style={[styles.topLeft, { top: insets.top + Spacing.three }]}>
-      {icon(
-        "Back",
-        { ios: "chevron.left", android: "arrow_back", web: "arrow_back" },
-        () => {
-          router.setParams({ projectId: undefined });
-          router.navigate(startProjectId ? "/projects" : "/");
-        },
-      )}
+      <GlassOrView style={styles.backCapsule}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          onPress={goBack}
+          style={({ pressed }) => [
+            styles.barPress,
+            pressed && styles.barItemPressed,
+          ]}
+        >
+          <SymbolView
+            name={
+              {
+                ios: "chevron.left",
+                android: "arrow_back",
+                web: "arrow_back",
+              } as never
+            }
+            tintColor="#fff"
+            size={22}
+            style={styles.barIcon}
+          />
+        </Pressable>
+      </GlassOrView>
     </View>
   );
 
@@ -282,6 +384,7 @@ export default function CameraScreen() {
             key={photoUri}
             active={markingUp}
             onDone={() => setMarkingUp(false)}
+            onDiscard={goBack}
           />
         </View>
         <MoveMediaModal
@@ -321,59 +424,75 @@ export default function CameraScreen() {
         {!markingUp && (
           <>
             {backButton}
-            <View style={[styles.rightRail, railStyle]}>
-              {icon(
-                "Markup",
-                { ios: "pencil.tip.crop.circle", android: "edit", web: "edit" },
-                () => setMarkingUp(true),
-              )}
-              {icon(
-                "Retake",
-                {
-                  ios: "arrow.counterclockwise",
-                  android: "refresh",
-                  web: "refresh",
-                },
-                () => {
-                  setSaveOpen(false);
-                  setPhotoUri(null);
-                },
-              )}
-              <View style={styles.saveWrap}>
-                {saveOpen && (
-                  <View style={styles.saveMenu}>
-                    {saveOption(
-                      "Save to device",
-                      "square.and.arrow.down",
-                      "download",
-                      () => {
-                        setSaveMode("device");
-                        setPickerOpen(true);
-                      },
-                    )}
-                    {saveOption(
-                      "Save to cloud",
-                      "icloud.and.arrow.up",
-                      "cloud_upload",
-                      () => {
-                        setSaveMode("cloud");
-                        setPickerOpen(true);
-                      },
-                    )}
-                  </View>
+            {saveOpen && (
+              <View
+                style={[
+                  styles.saveMenu,
+                  { bottom: insets.bottom + BAR_HEIGHT + Spacing.two },
+                ]}
+              >
+                {saveOption(
+                  "Save to device",
+                  "square.and.arrow.down",
+                  "download",
+                  () => {
+                    setSaveMode("device");
+                    setPickerOpen(true);
+                  },
                 )}
-                {icon(
-                  "Save",
-                  {
+                {saveOption(
+                  "Save to cloud",
+                  "icloud.and.arrow.up",
+                  "cloud_upload",
+                  () => {
+                    setSaveMode("cloud");
+                    setPickerOpen(true);
+                  },
+                )}
+              </View>
+            )}
+            <ActionBar
+              bottom={insets.bottom}
+              items={[
+                {
+                  label: "Markup",
+                  name: {
+                    ios: "pencil.tip.crop.circle",
+                    android: "edit",
+                    web: "edit",
+                  },
+                  onPress: () => setMarkingUp(true),
+                },
+                {
+                  label: "Retake",
+                  name: {
+                    ios: "arrow.counterclockwise",
+                    android: "refresh",
+                    web: "refresh",
+                  },
+                  onPress: () => {
+                    setSaveOpen(false);
+                    setPhotoUri(null);
+                  },
+                },
+                {
+                  label: "Save",
+                  name: {
                     ios: "square.and.arrow.down",
                     android: "save",
                     web: "save",
                   },
-                  () => setSaveOpen((o) => !o),
-                  true,
-                )}
-              </View>
-            </View>
+                  onPress: () => {
+                    if (saveDestination === "ask") {
+                      setSaveOpen((o) => !o);
+                    } else {
+                      setSaveMode(saveDestination);
+                      setPickerOpen(true);
+                    }
+                  },
+                },
+              ]}
+            />
           </>
         )}
       </View>
@@ -427,7 +546,7 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: "#000" },
   savingOverlay: {
-    ...StyleSheet.absoluteFill as object,
+    ...(StyleSheet.absoluteFill as object),
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -446,13 +565,44 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     gap: Spacing.three,
   },
-  saveWrap: { alignItems: "flex-end" },
+  barWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.two,
+  },
+  barFallback: {
+    backgroundColor: "rgba(40,40,44,0.85)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  backCapsule: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  barItem: {
+    width: BAR_ITEM_WIDTH,
+    height: BAR_HEIGHT,
+    borderRadius: BAR_HEIGHT / 2,
+    overflow: "hidden",
+  },
+  barPress: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  barItemPressed: { backgroundColor: "rgba(255,255,255,0.22)" },
+  barIcon: { width: 24, height: 24 },
+  barLabel: { color: "#fff", fontSize: 11, fontWeight: "600" },
   saveMenu: {
     position: "absolute",
-    right: "100%",
-    bottom: 0,
+    alignSelf: "center",
     width: 200,
-    marginRight: Spacing.two,
     padding: Spacing.one,
     gap: Spacing.one,
     borderRadius: 24,
